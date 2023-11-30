@@ -6,6 +6,7 @@ from dataset import vocab_size
 
 config = get_config("config.yaml")
 
+
 class Head(nn.Module):
     def __init__(self, head_size):
         super().__init__()
@@ -24,6 +25,7 @@ class Head(nn.Module):
         A = F.softmax(h * d_k ** -0.5, dim=-1)
         o = A @ v
         return o
+
 
 class MultiheadAttention(nn.Module):
     def __init__(self, num_head, head_size):
@@ -65,12 +67,14 @@ class TransformerBlock(nn.Module):
         x = self.ff(self.ln2(x)) + x
         return x
 
+
 class TransformerDecoder(nn.Module):
     def __init__(self):
         super().__init__()
         self.positional_embd = nn.Embedding(config.block_size, config.n_embd)
         self.text_embd = nn.Embedding(vocab_size, config.n_embd)
-        self.transformer_layers = nn.Sequential(*[TransformerBlock(config.n_embd, config.n_head) for _ in range(config.n_layer)])
+        self.transformer_layers = nn.Sequential(
+            *[TransformerBlock(config.n_embd, config.n_head) for _ in range(config.n_layer)])
         self.out = nn.Linear(config.n_embd, vocab_size)
         self.ln = nn.LayerNorm(config.n_embd)
 
@@ -93,7 +97,7 @@ class TransformerDecoder(nn.Module):
 
     def generate(self, x, max_new_token):
         B, T = x.shape
-
+        generated = []
         for i in range(max_new_token):
             x = x[:, -config.block_size:]
             y = self(x)
@@ -101,5 +105,6 @@ class TransformerDecoder(nn.Module):
 
             pred_char_prob = F.softmax(pred_char, dim=-1)
             sampled_char = torch.multinomial(pred_char_prob, 1)
+            generated.append(sampled_char)
             x = torch.cat([x, sampled_char], dim=1)
-        return x
+        return torch.tensor(generated, dtype=torch.long)
