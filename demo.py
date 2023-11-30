@@ -12,6 +12,11 @@ def filter_generated_response(text):
     if match:
         extracted_text = match.group(1).strip()
         return extracted_text
+    elif '<answer>:' in text and '\n<' in text:
+        # If the pattern is not found but the markers are present, filter the text
+        filtered_text = re.sub(r'<answer>:', '', text)
+        filtered_text = filtered_text.split('\n<')[0].strip()
+        return filtered_text
     else:
         raise AssertionError("Pattern not found.")
 
