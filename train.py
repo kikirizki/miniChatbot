@@ -17,3 +17,9 @@ for x, y in zip(x_data, y_data):
     optimizer.step()
     if iter % config.eval_interval == 0:
         print(print("Losss ", loss.item()))
+        torch.save({
+            'model_state_dict': m.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'loss': loss,
+            'iteration': iter
+        }, 'latest.pt')
