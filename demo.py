@@ -22,8 +22,13 @@ def filter_generated_response(text):
 
 model = TransformerDecoder().to(config.device)
 model.load_state_dict(torch.load('latest.pt')['model_state_dict'])
-sample = torch.tensor(encode("<question>:are you beyonce?", vocab=vocab), dtype=torch.long).to(config.device)
-y = model.generate(sample.unsqueeze(dim=0), 50)
-y = y.squeeze().cpu().numpy()
-generated_text = decode(y, vocab=vocab)
-answer = filter_generated_response(generated_text)
+while True:
+    user_input = input("Ask the bot: ")
+
+    sample = torch.tensor(encode(f"<question>:{user_input}", vocab=vocab), dtype=torch.long).to(config.device)
+    y = model.generate(sample.unsqueeze(dim=0), 50)
+    y = y.squeeze().cpu().numpy()
+    generated_text = decode(y, vocab=vocab)
+    answer = filter_generated_response(generated_text)
+
+    print("Bot's response:", answer)
