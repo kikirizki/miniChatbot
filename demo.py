@@ -31,4 +31,4 @@ while True:
     generated_text = decode(y, vocab=vocab)
     answer = filter_generated_response(generated_text)
 
-    print("Bot's response:", answer)
+    print("[Bot's response]:", answer)
