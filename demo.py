@@ -18,7 +18,7 @@ def filter_generated_response(text):
         filtered_text = filtered_text.split('\n<')[0].strip()
         return filtered_text
     else:
-        raise AssertionError("Pattern not found.")
+        return text
 
 model = TransformerDecoder().to(config.device)
 model.load_state_dict(torch.load('latest.pt')['model_state_dict'])
