@@ -6,7 +6,7 @@ import re
 config = get_config("config.py")
 
 def filter_generated_response(text):
-    pattern = r'<answer>:(.*?)\n'
+    pattern = r'<answer>:(.*?)(?=\n<)'
     match = re.search(pattern, text)
 
     if match:
