@@ -46,7 +46,7 @@ def get_raw_string():
 
 
 def encode(text):
-    return enc.decode(text)
+    return enc.encode(text)
 
 
 def decode(idxs):
