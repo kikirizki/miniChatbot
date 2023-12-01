@@ -46,7 +46,7 @@ def get_raw_string():
 
 
 def encode(text, vocab):
-    return [vocab.index(c) for c in text]
+    return enc.decode(text)
 
 
 def decode(idxs, vocab):

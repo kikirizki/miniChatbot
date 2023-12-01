@@ -1,5 +1,5 @@
 import torch
-from dataset import encode, get_config, vocab, decode
+from dataset import encode, get_config, decode
 from model import TransformerDecoder
 import re
 
@@ -25,10 +25,10 @@ model.load_state_dict(torch.load('latest.pt')['model_state_dict'])
 while True:
     user_input = input("Ask the bot: ")
 
-    sample = torch.tensor(encode(f"<question>:{user_input}", vocab=vocab), dtype=torch.long).to(config.device)
+    sample = torch.tensor(encode(f"<question>:{user_input}"), dtype=torch.long).to(config.device)
     y = model.generate(sample.unsqueeze(dim=0), 50)
     y = y.squeeze().cpu().numpy()
-    generated_text = decode(y, vocab=vocab)
+    generated_text = decode(y)
     answer = filter_generated_response(generated_text)
 
     print("[Bot's response]:", answer)
