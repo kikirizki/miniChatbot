@@ -10,7 +10,7 @@ config = get_config("config.yaml")
 import os
 import json
 import wget
-def get_raw_string():
+def get_qa_pairs():
     url = "https://rajpurkar.github.io/SQuAD-explorer/dataset/train-v2.0.json"
     downloaded_file = "train-v2.0.json"
 
@@ -44,6 +44,35 @@ def get_raw_string():
                     print(line)
     return "\n".join(qa_pairs)
 
+def get_context():
+    url = "https://rajpurkar.github.io/SQuAD-explorer/dataset/train-v2.0.json"
+    downloaded_file = "train-v2.0.json"
+
+    # Check if the file already exists
+    if not os.path.exists(downloaded_file):
+        # Define the download progress bar
+        def bar_progress(current, total, width=80):
+            progress = int(width * current / total)
+            return "[" + "=" * progress + " " * (width - progress) + "]"
+
+        # Download the file with a progress bar
+        wget.download(url, downloaded_file, bar=bar_progress)
+        print("File downloaded successfully.")
+    else:
+        print("File already exists.")
+
+    # Read the JSON file
+    with open(downloaded_file, 'r') as f:
+        data = json.load(f)
+
+    # Now 'data' contains the parsed JSON data
+    # You can access the content of the JSON file using dictionary-like syntax
+    contexts = []
+    for i in data['data']:
+        for p in i['paragraphs']:
+             print(p['context'])
+    return "\n".join(contexts)
+
 
 def encode(text):
     return enc.encode(text)
@@ -69,10 +98,10 @@ def get_batch(split):
     return x, y
 
 
-raw_text = get_raw_string()
+raw_text = get_context()
 raw_text_length = len(raw_text)
 n = int(0.9 * raw_text_length)
-# vocab = "".join(sorted(list(set(raw_text))))
+
 vocab_size = enc.n_vocab
 
 train_data = enc.encode(raw_text[:n])
