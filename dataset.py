@@ -1,16 +1,11 @@
-from config import get_config
 import numpy as np
+import tiktoken
 import torch
-import wget
-import json
-import os
 
+from config import get_config
+
+enc = tiktoken.get_encoding("cl100k_base")
 config = get_config("config.yaml")
-
-
-import os
-import json
-import wget
 
 import os
 import json
@@ -77,11 +72,11 @@ def get_batch(split):
 raw_text = get_raw_string()
 raw_text_length = len(raw_text)
 n = int(0.9 * raw_text_length)
-vocab = "".join(sorted(list(set(raw_text))))
-vocab_size = len(vocab)
+# vocab = "".join(sorted(list(set(raw_text))))
+vocab_size = 100000
 
-train_data = encode(raw_text[:n],vocab)
-val_data = encode(raw_text[n:],vocab)
+train_data = enc.encode(raw_text[:n])
+val_data = enc.encode(raw_text[n:])
 
 
 
