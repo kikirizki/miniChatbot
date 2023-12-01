@@ -50,7 +50,7 @@ def encode(text, vocab):
 
 
 def decode(idxs, vocab):
-    return "".join([vocab[idx] for idx in idxs])
+    return enc.decode(idxs)
 
 
 def get_batch(split):
