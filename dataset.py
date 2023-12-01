@@ -73,7 +73,7 @@ raw_text = get_raw_string()
 raw_text_length = len(raw_text)
 n = int(0.9 * raw_text_length)
 # vocab = "".join(sorted(list(set(raw_text))))
-vocab_size = 100000
+vocab_size = enc.n_vocab
 
 train_data = enc.encode(raw_text[:n])
 val_data = enc.encode(raw_text[n:])
