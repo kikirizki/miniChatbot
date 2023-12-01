@@ -70,7 +70,7 @@ def get_context():
     contexts = []
     for i in data['data']:
         for p in i['paragraphs']:
-             print(p['context'])
+             contexts.append(p['context'])
     return "\n".join(contexts)
 
 
