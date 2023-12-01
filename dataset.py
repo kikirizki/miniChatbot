@@ -45,11 +45,11 @@ def get_raw_string():
     return "\n".join(qa_pairs)
 
 
-def encode(text, vocab):
+def encode(text):
     return enc.decode(text)
 
 
-def decode(idxs, vocab):
+def decode(idxs):
     return enc.decode(idxs)
 
 
