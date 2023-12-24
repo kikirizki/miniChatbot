@@ -21,7 +21,7 @@ def get_rotary_embedding(token_length, embd_dim):
             sub_mtrx = np.array([[cos(m*theta_i), -sin(m*theta_i)],[sin(m*theta_i),cos(m*theta_i)]])
             R_m[2*i:2*i+2,2*i:2*i+2]=sub_mtrx
         R.append(R_m)
-    return torch.unsqueeze(torch.tensor(R,device=config.device),0)
+    return torch.tensor(R,device=config.device)
 
 class Head(nn.Module):
     def __init__(self, head_size):
@@ -36,8 +36,8 @@ class Head(nn.Module):
     def forward(self, x):
         B, T, C = x.shape
         q, k, v = self.query_proj(x), self.key_proj(x), self.value_proj(x)  # B,T, head_size
-        q = torch.bmm(q,self.rotary_matrix.transpose(1,2))
-        k = torch.bmm(k,self.rotary_matrix.transpose(1,2))
+        q = torch.bmm(q.transpose(0,1),self.rotary_matrix[:T]).transpose(0,1)
+        k = torch.bmm(k.transpose(0,1),self.rotary_matrix[:T]).transpose(0,1)
         d_k = k.shape[-1]
         h = q @ k.transpose(-2, -1)  # B, T, T
         h = h.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
