@@ -13,14 +13,13 @@ def get_frequency(i, d):
     
 def get_rotary_embedding(token_length, embd_dim):
     d = embd_dim//2
-    R = []
+    R = np.zeros([token_length,embd_dim,embd_dim])
+      
     for m in range(token_length):
-        R_m = np.zeros([embd_dim,embd_dim])
-        for i in range(d):
+          for i in range(d):
             theta_i = get_frequency(i,d)
-            sub_mtrx = np.array([[cos(m*theta_i), -sin(m*theta_i)],[sin(m*theta_i),cos(m*theta_i)]])
-            R_m[2*i:2*i+2,2*i:2*i+2]=sub_mtrx
-        R.append(R_m)
+            rot_2d = np.array([[cos(m*theta_i), -sin(m*theta_i)],[sin(m*theta_i),cos(m*theta_i)]],dtype=np.float32)
+            R[m,2*i:2*i+2,2*i:2*i+2] = rot_2d
     return torch.tensor(R,device=config.device)
 
 class Head(nn.Module):
