@@ -30,7 +30,7 @@ class Head(nn.Module):
         self.query_proj = nn.Linear(config.n_embd, head_size, bias=False)
         self.value_proj = nn.Linear(config.n_embd, head_size, bias=False)
         self.dropout = nn.Dropout(config.dropout)
-        self.register_buffer("rotary_matrix",get_rotary_embedding(config.block_size, config.n_embd))
+        self.register_buffer("rotary_matrix",get_rotary_embedding(config.block_size, head_size))
         self.register_buffer("tril", torch.tril(torch.ones(config.block_size, config.block_size)))
 
     def forward(self, x):
