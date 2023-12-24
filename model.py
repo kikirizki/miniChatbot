@@ -1,11 +1,27 @@
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
+from math import cos, sin
 from config import get_config
 from dataset import vocab_size
 
 config = get_config("config.yaml")
 
+def get_frequency(i, d):
+    return 10000**(-2*(i-1)/d)
+    
+def get_rotary_embedding(token_length, embd_dim):
+    d = embd_dim//2
+    R = []
+    for m in range(token_length):
+        R_m = np.zeros([embd_dim,embd_dim])
+        for i in range(d):
+            theta_i = get_frequency(i,d)
+            sub_mtrx = np.array([[cos(m*theta_i), -sin(m*theta_i)],[sin(m*theta_i),cos(m*theta_i)]])
+            R_m[2*i:2*i+2,2*i:2*i+2]=sub_mtrx
+        R.append(R_m)
+    return torch.tensor(R)
 
 class Head(nn.Module):
     def __init__(self, head_size):
