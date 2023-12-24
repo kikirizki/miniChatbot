@@ -36,8 +36,8 @@ class Head(nn.Module):
     def forward(self, x):
         B, T, C = x.shape
         q, k, v = self.query_proj(x), self.key_proj(x), self.value_proj(x)  # B,T, head_size
-        q = self.rotary_matrix@q
-        k = self.rotary_matrix@k
+        q = q@self.rotary_matrix.transpose(1,2)
+        k = k@self.rotary_matrix.transpose(1,2)
         d_k = k.shape[-1]
         h = q @ k.transpose(-2, -1)  # B, T, T
         h = h.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
