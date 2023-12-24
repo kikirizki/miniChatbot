@@ -90,7 +90,7 @@ class TransformerDecoder(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.text_embd = nn.Embedding(vocab_size, config.n_embd)
+        self.text_embd = nn.Embedding(vocab_size, config.n_embd).to(torch.float)
         self.transformer_layers = nn.Sequential(
             *[TransformerBlock(config.n_embd, config.n_head) for _ in range(config.n_layer)])
         self.out = nn.Linear(config.n_embd, vocab_size)
