@@ -18,10 +18,10 @@ def get_rotary_embedding(token_length, embd_dim):
     for m in range(token_length):
           for i in range(d):
             theta_i = get_frequency(i,d)
-            rot_2d = np.array([[cos(m*theta_i), -sin(m*theta_i)],[sin(m*theta_i),cos(m*theta_i)]],dtype=np.float32)
+            rot_2d = np.array([[cos(m*theta_i), -sin(m*theta_i)],[sin(m*theta_i),cos(m*theta_i)]])
             R[m,2*i:2*i+2,2*i:2*i+2] = rot_2d
-    return torch.tensor(R,device=config.device)
-
+    return torch.tensor(R,device=config.device).to(torch.float)
+    
 class Head(nn.Module):
     def __init__(self, head_size):
         super().__init__()
@@ -90,7 +90,7 @@ class TransformerDecoder(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.text_embd = nn.Embedding(vocab_size, config.n_embd).to(torch.float)
+        self.text_embd = nn.Embedding(vocab_size, config.n_embd)
         self.transformer_layers = nn.Sequential(
             *[TransformerBlock(config.n_embd, config.n_head) for _ in range(config.n_layer)])
         self.out = nn.Linear(config.n_embd, vocab_size)
