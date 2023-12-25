@@ -17,7 +17,7 @@ class Config:
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def get_config(config_path):
-    with open('config.yaml', 'r') as f:
+    with open(config_path, 'r') as f:
         config_dict = yaml.safe_load(f)
     config = Config(**config_dict)
     return config
