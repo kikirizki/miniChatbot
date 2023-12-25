@@ -13,16 +13,15 @@ def get_frequency(i, d):
     
 def get_rotary_embedding(token_length, embd_dim):
     d = embd_dim//2
-    R = []
+    R = np.zeros([token_length,embd_dim,embd_dim])
+      
     for m in range(token_length):
-        R_m = np.zeros([embd_dim,embd_dim])
-        for i in range(d):
+          for i in range(d):
             theta_i = get_frequency(i,d)
-            sub_mtrx = np.array([[cos(m*theta_i), -sin(m*theta_i)],[sin(m*theta_i),cos(m*theta_i)]])
-            R_m[2*i:2*i+2,2*i:2*i+2]=sub_mtrx
-        R.append(R_m)
-    return torch.tensor(R)
-
+            rot_2d = np.array([[cos(m*theta_i), -sin(m*theta_i)],[sin(m*theta_i),cos(m*theta_i)]])
+            R[m,2*i:2*i+2,2*i:2*i+2] = rot_2d
+    return torch.tensor(R,device=config.device).to(torch.float)
+    
 class Head(nn.Module):
     def __init__(self, head_size):
         super().__init__()
@@ -30,11 +29,14 @@ class Head(nn.Module):
         self.query_proj = nn.Linear(config.n_embd, head_size, bias=False)
         self.value_proj = nn.Linear(config.n_embd, head_size, bias=False)
         self.dropout = nn.Dropout(config.dropout)
+        self.register_buffer("rotary_matrix",get_rotary_embedding(config.block_size, head_size))
         self.register_buffer("tril", torch.tril(torch.ones(config.block_size, config.block_size)))
 
     def forward(self, x):
         B, T, C = x.shape
         q, k, v = self.query_proj(x), self.key_proj(x), self.value_proj(x)  # B,T, head_size
+        q = torch.bmm(q.transpose(0,1),self.rotary_matrix[:T]).transpose(0,1)
+        k = torch.bmm(k.transpose(0,1),self.rotary_matrix[:T]).transpose(0,1)
         d_k = k.shape[-1]
         h = q @ k.transpose(-2, -1)  # B, T, T
         h = h.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
@@ -87,7 +89,7 @@ class TransformerBlock(nn.Module):
 class TransformerDecoder(nn.Module):
     def __init__(self):
         super().__init__()
-        self.positional_embd = nn.Embedding(config.block_size, config.n_embd)
+
         self.text_embd = nn.Embedding(vocab_size, config.n_embd)
         self.transformer_layers = nn.Sequential(
             *[TransformerBlock(config.n_embd, config.n_head) for _ in range(config.n_layer)])
@@ -96,9 +98,8 @@ class TransformerDecoder(nn.Module):
 
     def forward(self, encoded_text, target=None):
         B, T = encoded_text.shape
-        pos_embd = self.positional_embd(torch.arange(T, device=config.device))
         text_embd = self.text_embd(encoded_text)
-        x = text_embd + pos_embd
+        x = text_embd 
         x = self.transformer_layers(x)
         x = self.ln(x)
         logits = self.out(x)
