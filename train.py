@@ -1,15 +1,17 @@
 import os
 import torch
+import argparse
 from model import TransformerDecoder
 from config import get_config
 from dataset import get_batch
 
 def train(config):
-    model = TransformerDecoder()
+    x_data, y_data, vocab_size = get_batch("train", config)
+    model = TransformerDecoder(config, vocab_size)
     m = model.to(config.device)
 
     optimizer = torch.optim.AdamW(m.parameters(), lr=config.learning_rate)
-    x_data, y_data = get_batch("train")
+    
     iter = 0
 
     # Specify the directory to save checkpoints

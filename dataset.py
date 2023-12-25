@@ -12,7 +12,7 @@ SQUAD_URL = "https://rajpurkar.github.io/SQuAD-explorer/dataset/train-v2.0.json"
 DOWNLOADED_FILE = "train-v2.0.json"
 
 enc = tiktoken.get_encoding("cl100k_base")
-config = get_config("config.yaml")
+
 vocab_size = 0
 
 def download_file(url, downloaded_file):
@@ -61,8 +61,8 @@ def encode(text):
 def decode(idxs):
     return enc.decode(idxs)
 
-def get_batch(split, dataset_type="context"):
-    train_data, val_data = get_dataset(dataset_type)
+def get_batch(split, config):
+    train_data, val_data, vocab_size = get_dataset(config.task)
     data = train_data if split == "train" else val_data
     data_len = len(data)
     n_batch = data_len // config.batch_size
@@ -75,16 +75,15 @@ def get_batch(split, dataset_type="context"):
          batch_idx in rnd_idx]
     y = [torch.tensor([data[(i + 1) % data_len:(i + 1) % data_len + config.block_size] for i in batch_idx],
                       dtype=torch.long, device=config.device) for batch_idx in rnd_idx]
-    return x, y
+    return x, y, vocab_size
 
 def get_dataset(dataset_type):
-    global vocab_size
-    raw_text = get_context() if dataset_type == "context" else get_qa_pairs()
+    raw_text = get_context() if dataset_type == "train" else get_qa_pairs()
     raw_text_length = len(raw_text)
     n = int(0.9 * raw_text_length)
     vocab_size = enc.n_vocab
     train_data = enc.encode(raw_text[:n])
     val_data = enc.encode(raw_text[n:])
-    return train_data, val_data
+    return train_data, val_data, vocab_size
 
 

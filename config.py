@@ -2,7 +2,7 @@ import yaml
 import torch
 
 class Config:
-    def __init__(self, batch_size, block_size, max_iters, eval_interval, learning_rate, eval_iters, n_embd, n_head, n_layer, dropout, save_interval):
+    def __init__(self, batch_size, block_size, max_iters, eval_interval, learning_rate, eval_iters, n_embd, n_head, n_layer, dropout, save_interval, checkpoint_name, task):
         self.batch_size = batch_size
         self.block_size = block_size
         self.max_iters = max_iters
@@ -15,6 +15,8 @@ class Config:
         self.n_layer = n_layer
         self.dropout = dropout
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.checkpoint_name = checkpoint_name
+        self.task = task
 
 def get_config(config_path):
     with open(config_path, 'r') as f:
