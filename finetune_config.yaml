@@ -9,3 +9,4 @@ n_head: 4
 n_layer: 4
 dropout: 0.0
 save_interval : 10000
+checkpoint_name : "pre_checkpoint"
