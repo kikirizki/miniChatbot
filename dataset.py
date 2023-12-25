@@ -1,88 +1,68 @@
 import numpy as np
 import tiktoken
 import torch
-
-from config import get_config
-
-enc = tiktoken.get_encoding("cl100k_base")
-config = get_config("config.yaml")
-
 import os
 import json
 import wget
-def get_qa_pairs():
-    url = "https://rajpurkar.github.io/SQuAD-explorer/dataset/train-v2.0.json"
-    downloaded_file = "train-v2.0.json"
 
-    # Check if the file already exists
+from config import get_config
+
+# Constants
+SQUAD_URL = "https://rajpurkar.github.io/SQuAD-explorer/dataset/train-v2.0.json"
+DOWNLOADED_FILE = "train-v2.0.json"
+
+enc = tiktoken.get_encoding("cl100k_base")
+config = get_config("config.yaml")
+vocab_size = 0
+
+def download_file(url, downloaded_file):
     if not os.path.exists(downloaded_file):
-        # Define the download progress bar
         def bar_progress(current, total, width=80):
             progress = int(width * current / total)
             return "[" + "=" * progress + " " * (width - progress) + "]"
 
-        # Download the file with a progress bar
         wget.download(url, downloaded_file, bar=bar_progress)
         print("File downloaded successfully.")
     else:
         print("File already exists.")
 
-    # Read the JSON file
-    with open(downloaded_file, 'r') as f:
+def read_json_file(file_path):
+    with open(file_path, 'r') as f:
         data = json.load(f)
+    return data
 
-    # Now 'data' contains the parsed JSON data
-    # You can access the content of the JSON file using dictionary-like syntax
+def get_qa_pairs():
+    download_file(SQUAD_URL, DOWNLOADED_FILE)
+    data = read_json_file(DOWNLOADED_FILE)
+
     qa_pairs = []
-    for i in data['data']:
-        for p in i['paragraphs']:
-            for i in p['qas']:
-
-                if len(i['answers']) > 0:
-                    line = f"<question>:{i['question']}\n<answer>:{i['answers'][0]['text']}"
+    for item in data['data']:
+        for paragraph in item['paragraphs']:
+            for question_answer in paragraph['qas']:
+                if len(question_answer['answers']) > 0:
+                    line = f"<question>:{question_answer['question']}\n<answer>:{question_answer['answers'][0]['text']}"
                     qa_pairs.append(line)
                     print(line)
     return "\n".join(qa_pairs)
 
 def get_context():
-    url = "https://rajpurkar.github.io/SQuAD-explorer/dataset/train-v2.0.json"
-    downloaded_file = "train-v2.0.json"
+    download_file(SQUAD_URL, DOWNLOADED_FILE)
+    data = read_json_file(DOWNLOADED_FILE)
 
-    # Check if the file already exists
-    if not os.path.exists(downloaded_file):
-        # Define the download progress bar
-        def bar_progress(current, total, width=80):
-            progress = int(width * current / total)
-            return "[" + "=" * progress + " " * (width - progress) + "]"
-
-        # Download the file with a progress bar
-        wget.download(url, downloaded_file, bar=bar_progress)
-        print("File downloaded successfully.")
-    else:
-        print("File already exists.")
-
-    # Read the JSON file
-    with open(downloaded_file, 'r') as f:
-        data = json.load(f)
-
-    # Now 'data' contains the parsed JSON data
-    # You can access the content of the JSON file using dictionary-like syntax
     contexts = []
-    for i in data['data']:
-        for p in i['paragraphs']:
-             contexts.append(p['context'])
+    for item in data['data']:
+        for paragraph in item['paragraphs']:
+            contexts.append(paragraph['context'])
     return "\n".join(contexts)
-
 
 def encode(text):
     return enc.encode(text)
 
-
 def decode(idxs):
     return enc.decode(idxs)
 
-
-def get_batch(split):
+def get_batch(split, dataset_type="context"):
+    train_data, val_data = get_dataset(dataset_type)
     data = train_data if split == "train" else val_data
     data_len = len(data)
     n_batch = data_len // config.batch_size
@@ -97,15 +77,14 @@ def get_batch(split):
                       dtype=torch.long, device=config.device) for batch_idx in rnd_idx]
     return x, y
 
-
-raw_text = get_context()
-raw_text_length = len(raw_text)
-n = int(0.9 * raw_text_length)
-
-vocab_size = enc.n_vocab
-
-train_data = enc.encode(raw_text[:n])
-val_data = enc.encode(raw_text[n:])
-
+def get_dataset(dataset_type):
+    global vocab_size
+    raw_text = get_context() if dataset_type == "context" else get_qa_pairs()
+    raw_text_length = len(raw_text)
+    n = int(0.9 * raw_text_length)
+    vocab_size = enc.n_vocab
+    train_data = enc.encode(raw_text[:n])
+    val_data = enc.encode(raw_text[n:])
+    return train_data, val_data
 
 
