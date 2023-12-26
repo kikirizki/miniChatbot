@@ -8,6 +8,6 @@ n_embd: 64
 n_head: 4
 n_layer: 4
 dropout: 0.0
-save_interval : 10000
-checkpoint_name : "train_checkpoint"
-task : "train"
+save_interval: 10000
+checkpoint_name: "train_checkpoint"
+task: "train"
