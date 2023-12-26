@@ -71,6 +71,7 @@ class TransformerBlock(nn.Module):
     def __init__(self, cfg):
         super().__init__()
         head_size = cfg.n_embd // cfg.n_head
+        self.block_size = cfg.block_size
         self.ln1 = nn.LayerNorm(cfg.n_embd)
         self.ln2 = nn.LayerNorm(cfg.n_embd)
         self.ff = FeedForward(cfg)
@@ -112,7 +113,7 @@ class TransformerDecoder(nn.Module):
         B, T = x.shape
         generated = []
         for i in range(max_new_token):
-            x = x[:, -cfg.block_size:]
+            x = x[:, -self.block_size:]
             y = self(x)
             pred_char = y[:, -1, :]
 
