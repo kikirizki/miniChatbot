@@ -1,7 +1,9 @@
 import yaml
 import torch
+from dataclasses import dataclass
 
-class Config:
+@dataclass
+class ModelArgs:
     def __init__(self, batch_size, block_size, max_iters, eval_interval, learning_rate, eval_iters, n_embd, n_head, n_layer, dropout, save_interval, checkpoint_name, task):
         self.batch_size = batch_size
         self.block_size = block_size
@@ -21,5 +23,5 @@ class Config:
 def get_config(config_path):
     with open(config_path, 'r') as f:
         config_dict = yaml.safe_load(f)
-    config = Config(**config_dict)
+    config = ModelArgs(**config_dict)
     return config
