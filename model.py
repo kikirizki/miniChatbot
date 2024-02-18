@@ -1,124 +1,381 @@
+from dataclasses import dataclass
+from typing import Optional
+import math
 import torch
-import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from math import cos, sin
+from pathlib import Path
+import json
+from sentencepiece import SentencePieceProcessor
+from tqdm import tqdm
+from einops import rearrange, repeat
 
-def get_frequency(i, d):
-    return 10000**(-2*(i-1)/d)
-    
-def get_rotary_embedding(cfg, embd_dim):
-    d = embd_dim//2
-    R = np.zeros([cfg.block_size,embd_dim,embd_dim])
-      
-    for m in range(cfg.block_size):
-          for i in range(d):
-            theta_i = get_frequency(i,d)
-            rot_2d = np.array([[cos(m*theta_i), -sin(m*theta_i)],[sin(m*theta_i),cos(m*theta_i)]])
-            R[m,2*i:2*i+2,2*i:2*i+2] = rot_2d
-    return torch.tensor(R,device=cfg.device).to(torch.float)
-    
-class Head(nn.Module):
-    def __init__(self, cfg, head_size):
+
+@dataclass
+class ModelArgs:
+    dim: int = 4096
+    n_layers: int = 32
+    n_heads: int = 32
+    n_kv_heads: Optional[int] = None
+    vocab_size: int = -1
+    multiple_of: int = 256
+    ffn_dim_multiplier: Optional[float] = None
+    norm_eps: float = 1e-5
+
+    max_batch_size: int = 32
+    max_seq_len: int = 2048
+
+    device: str = None
+
+
+class RMSNorm(nn.Module):
+    def __init__(self, dim: int, eps: float = 1e-6):
         super().__init__()
-        self.key_proj = nn.Linear(cfg.n_embd, head_size, bias=False)
-        self.query_proj = nn.Linear(cfg.n_embd, head_size, bias=False)
-        self.value_proj = nn.Linear(cfg.n_embd, head_size, bias=False)
-        self.dropout = nn.Dropout(cfg.dropout)
-        self.register_buffer("rotary_matrix",get_rotary_embedding(cfg, head_size))
-        self.register_buffer("tril", torch.tril(torch.ones(cfg.block_size, cfg.block_size)))
+        self.eps = eps
+        # The gamma parameter
+        self.weight = nn.Parameter(torch.ones(dim))
 
-    def forward(self, x):
-        B, T, C = x.shape
-        q, k, v = self.query_proj(x), self.key_proj(x), self.value_proj(x)  # B,T, head_size
-        q = torch.bmm(q.transpose(0,1),self.rotary_matrix[:T]).transpose(0,1)
-        k = torch.bmm(k.transpose(0,1),self.rotary_matrix[:T]).transpose(0,1)
-        d_k = k.shape[-1]
-        h = q @ k.transpose(-2, -1)  # B, T, T
-        h = h.masked_fill(self.tril[:T, :T] == 0, float('-inf'))
-        A = F.softmax(h * d_k ** -0.5, dim=-1)
-        o = A @ v
-        return o
+    def _norm(self, x: torch.Tensor):
+        # (B, Seq_Len, Dim) * (B, Seq_Len, 1) = (B, Seq_Len, Dim)
+        # rsqrt: 1 / sqrt(x)
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+
+    def forward(self, x: torch.Tensor):
+        # (Dim) * (B, Seq_Len, Dim) = (B, Seq_Len, Dim)
+        return self.weight * self._norm(x.float()).type_as(x)
 
 
-class MultiheadAttention(nn.Module):
-    def __init__(self, cfg, head_size):
+def get_complex_rotary_matrix(
+    head_dim: int, seq_len: int, device: str, theta: float = 10000.0
+):
+    # theta_i = 10000^(-2(i-1)/dim) for i = [1, 2, ... dim/2]
+    # let k = 2(i-1) then expression -2(i-1)/dim for i = [1, 2, ... dim/2] equivalent to
+    # -k/dim k=[-2(1-1), 2(2-1),2(3-1),...,2(dim/2 -1)]=[0,2,...,dim-2]
+    # or in python will be range(0,dim,2).
+    # Please recall that the range() function will only include dim-2 in the end of the series
+    theta = 1.0 / 10000.0 ** (torch.arange(0, head_dim, 2).float() / head_dim)
+    m = torch.arange(seq_len)
+    angular_component = torch.outer(m, theta).float()
+    radial_component = torch.ones_like(angular_component)
+    freqs_complex = torch.polar(radial_component, angular_component)
+    return freqs_complex
+
+
+def apply_rotary_embeddings(
+    x: torch.Tensor, rotary_matrix_complex: torch.Tensor, device: str
+):
+
+    x_complex = torch.view_as_complex(
+        rearrange(
+            x.float(),
+            "B seq_len n_head (half_hdim two) -> B seq_len n_head half_hdim two",
+            two=2,
+        )
+    )
+    rotary_matrix_complex = rearrange(
+        rotary_matrix_complex, "seq_len half_hdim -> 1 seq_len 1 half_hdim"
+    )
+    x_rotated_complex = x_complex * rotary_matrix_complex
+    x_rotated = torch.view_as_real(x_rotated_complex).reshape_as(x)
+    return x_rotated.type_as(x).to(device)
+
+
+def repeat_kv_head(x: torch.Tensor, n_rep: int) -> torch.Tensor:
+    if n_rep == 1:
+        return x
+    return repeat(
+        rearrange(x, "B seq_len n_head head_dim -> B seq_len (n_head) head_dim"),
+        "B seq_len (n_head) head_dim -> B seq_len (n_rep n_head) head_dim",
+        n_rep=n_rep,
+    )
+
+
+class SelfAttention(nn.Module):
+    def __init__(self, args: ModelArgs):
         super().__init__()
-        self.heads = nn.ModuleList([Head(cfg, head_size) for _ in range(cfg.n_head)])
-        self.proj = nn.Linear(cfg.n_embd, cfg.n_embd)
-        self.dropout = nn.Dropout(cfg.dropout)
 
-    def forward(self, x):
-        out = torch.cat([h(x) for h in self.heads], dim=-1)
-        out = self.dropout(self.proj(out))
-        return out
+        self.n_kv_heads = args.n_heads if args.n_kv_heads is None else args.n_kv_heads
+        self.n_heads_q = args.n_heads
+        self.n_rep = self.n_heads_q // self.n_kv_heads
+        self.head_dim = args.dim // args.n_heads
+
+        self.wq = nn.Linear(args.dim, args.n_heads * self.head_dim, bias=False)
+        self.wk = nn.Linear(args.dim, self.n_kv_heads * self.head_dim, bias=False)
+        self.wv = nn.Linear(args.dim, self.n_kv_heads * self.head_dim, bias=False)
+        self.wo = nn.Linear(args.n_heads * self.head_dim, args.dim, bias=False)
+
+        self.cache_key = torch.zeros(
+            (args.max_batch_size, args.max_seq_len, self.n_kv_heads, self.head_dim)
+        )
+        self.cache_value = torch.zeros(
+            (args.max_batch_size, args.max_seq_len, self.n_kv_heads, self.head_dim)
+        )
+
+    def update_cache(self, key, value, start_pos):
+        batch_size, seq_len, _, _ = key.shape
+        self.cache_key[:batch_size, start_pos : start_pos + seq_len] = key
+        self.cache_value[:batch_size, start_pos : start_pos + seq_len] = value
+        updated_key = self.cache_key[:batch_size, : start_pos + seq_len]
+        updated_value = self.cache_value[:batch_size, : start_pos + seq_len]
+        return updated_key, updated_value
+
+    def forward(
+        self, x: torch.Tensor, start_pos: int, rotary_matrix_complex: torch.Tensor
+    ):
+
+        query = rearrange(
+            self.wq(x),
+            "B seq_len (n_head h_dim) -> B seq_len n_head h_dim",
+            h_dim=self.head_dim,
+        )
+        key = rearrange(
+            self.wk(x),
+            "B seq_len (n_head h_dim) -> B seq_len n_head h_dim",
+            h_dim=self.head_dim,
+        )
+
+        value = rearrange(
+            self.wv(x),
+            "B seq_len (n_head h_dim) -> B seq_len n_head h_dim",
+            h_dim=self.head_dim,
+        )
+
+        query = apply_rotary_embeddings(query, rotary_matrix_complex, device=x.device)
+        key = apply_rotary_embeddings(key, rotary_matrix_complex, device=x.device)
+
+        key, value = self.update_cache(key, value, start_pos)
+
+        key = repeat_kv_head(key, self.n_rep)
+        value = repeat_kv_head(value, self.n_rep)
+
+        key = rearrange(key, "B seq_len n_head head_dim -> B n_head seq_len head_dim")
+        value = rearrange(
+            value, "B seq_len n_head head_dim -> B n_head seq_len head_dim"
+        )
+        query = rearrange(query, "B 1 n_head head_dim -> B n_head 1 head_dim")
+
+        scores = torch.einsum("bhqd,bhkd -> bhqk", query, key) / math.sqrt(
+            self.head_dim
+        )
+        scores = F.softmax(scores.float(), dim=-1).type_as(query)
+
+        # (B, H_Q, 1, Seq_Len) @ (B, H_Q, Seq_Len_KV, Head_Dim) -> (B, H_Q, 1, Head_Dim)
+        output = torch.einsum("bhqk,bhkv -> bhqv", scores, value)
+
+        output = rearrange(output, " B n_head 1 head_dim -> B 1 n_head head_dim")
+        output = rearrange(output, "B 1 n_head head_dim -> B 1 (n_head head_dim)")
+
+        return self.wo(output)  # (B, 1, Dim) -> (B, 1, Dim)
 
 
 class FeedForward(nn.Module):
-    def __init__(self, cfg):
+    def __init__(self, args: ModelArgs):
         super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(cfg.n_embd, 4 * cfg.n_embd),
-            nn.ReLU(),
-            nn.Linear(4 * cfg.n_embd, cfg.n_embd),
-            nn.Dropout(cfg.dropout))
 
-    def forward(self, x):
-        return self.net(x)
+        hidden_dim = 4 * args.dim
+        hidden_dim = int(2 * hidden_dim / 3)
+        if args.ffn_dim_multiplier is not None:
+            hidden_dim = int(args.ffn_dim_multiplier * hidden_dim)
 
+        hidden_dim = args.multiple_of * (
+            (hidden_dim + args.multiple_of - 1) // args.multiple_of
+        )
 
-class TransformerBlock(nn.Module):
-    def __init__(self, cfg):
-        super().__init__()
-        head_size = cfg.n_embd // cfg.n_head
-        self.block_size = cfg.block_size
-        self.ln1 = nn.LayerNorm(cfg.n_embd)
-        self.ln2 = nn.LayerNorm(cfg.n_embd)
-        self.ff = FeedForward(cfg)
-        self.mha = MultiheadAttention(cfg, head_size=head_size)
+        self.w1 = nn.Linear(args.dim, hidden_dim, bias=False)
+        self.w2 = nn.Linear(hidden_dim, args.dim, bias=False)
+        self.w3 = nn.Linear(args.dim, hidden_dim, bias=False)
 
-    def forward(self, x):
-        x = self.mha(self.ln1(x)) + x
-        x = self.ff(self.ln2(x)) + x
+    def forward(self, x: torch.Tensor):
+        swish = F.silu(self.w1(x))
+        x_V = self.w3(x)
+        x = swish * x_V
+        x = self.w2(x)
         return x
 
 
-class TransformerDecoder(nn.Module):
-    def __init__(self, cfg, vocab_size):
+class EncoderBlock(nn.Module):
+
+    def __init__(self, args: ModelArgs):
         super().__init__()
 
-        self.text_embd = nn.Embedding(vocab_size, cfg.n_embd)
-        self.transformer_layers = nn.Sequential(
-            *[TransformerBlock(cfg) for _ in range(cfg.n_layer)])
-        self.out = nn.Linear(cfg.n_embd, vocab_size)
-        self.ln = nn.LayerNorm(cfg.n_embd)
+        self.n_heads = args.n_heads
+        self.dim = args.dim
+        self.head_dim = args.dim // args.n_heads
 
-    def forward(self, encoded_text, target=None):
-        B, T = encoded_text.shape
-        text_embd = self.text_embd(encoded_text)
-        x = text_embd 
-        x = self.transformer_layers(x)
-        x = self.ln(x)
-        logits = self.out(x)
+        self.attention = SelfAttention(args)
+        self.feed_forward = FeedForward(args)
 
-        if target != None:
-            B, T, C = logits.shape
-            logits = logits.view(B * T, C)
-            target = target.view(B * T)
-            loss = F.cross_entropy(logits, target)
-            return logits, loss
-        return logits
+        self.attention_norm = RMSNorm(args.dim, eps=args.norm_eps)
+        self.ffn_norm = RMSNorm(args.dim, eps=args.norm_eps)
 
-    def generate(self, x, max_new_token):
-        B, T = x.shape
-        generated = []
-        for i in range(max_new_token):
-            x = x[:, -self.block_size:]
-            y = self(x)
-            pred_char = y[:, -1, :]
+    def forward(self, x: torch.Tensor, start_pos: int, freqs_complex: torch.Tensor):
+        # (B, Seq_Len, Dim) + (B, Seq_Len, Dim) --> (B, Seq_Len, Dim)
+        h = x + self.attention.forward(self.attention_norm(x), start_pos, freqs_complex)
+        # (B, Seq_Len, Dim) + (B, Seq_Len, Dim) --> (B, Seq_Len, Dim)
+        out = h + self.feed_forward.forward(self.ffn_norm(h))
+        return out
 
-            pred_char_prob = F.softmax(pred_char, dim=-1)
-            sampled_char = torch.multinomial(pred_char_prob, 1)
-            generated.append(sampled_char)
-            x = torch.cat([x, sampled_char], dim=1)
-        return torch.tensor(generated, dtype=torch.long)
+
+class Transformer(nn.Module):
+
+    def __init__(self, args: ModelArgs):
+        super().__init__()
+
+        assert args.vocab_size != -1, "Vocab size must be set"
+
+        self.args = args
+        self.vocab_size = args.vocab_size
+        self.n_layers = args.n_layers
+        self.tok_embeddings = nn.Embedding(self.vocab_size, args.dim)
+
+        self.layers = nn.ModuleList([EncoderBlock(args) for _ in range(args.n_layers)])
+
+        self.norm = RMSNorm(args.dim, eps=args.norm_eps)
+        self.output = nn.Linear(args.dim, self.vocab_size, bias=False)
+
+        self.complex_rotary_matrix = get_complex_rotary_matrix(
+            self.args.dim // self.args.n_heads,
+            self.args.max_seq_len * 2,
+            device=self.args.device,
+        )
+
+    def forward(self, tokens: torch.Tensor, start_pos: int):
+        batch_size, seq_len = tokens.shape
+        assert seq_len == 1, "Only one token at a time can be processed"
+
+        # (B, Seq_Len) -> (B, Seq_Len, Dim)
+        h = self.tok_embeddings(tokens)
+
+        complex_rotary_matrix = self.complex_rotary_matrix[
+            start_pos : start_pos + seq_len
+        ]
+        for layer in self.layers:
+            h = layer(h, start_pos, complex_rotary_matrix)
+        h = self.norm(h)
+        output = self.output(h).float()
+        return output
+
+
+class LLaMA:
+
+    def __init__(
+        self,
+        checkpoints_path: str,
+        parameter_path: str,
+        tokenizer_path: str,
+        load_model: bool,
+        max_seq_len: int,
+        max_batch_size: int,
+        device: str,
+    ):
+
+        if load_model:
+            checkpoint = torch.load(checkpoints_path, map_location="cpu")
+
+        with open(parameter_path, "r") as f:
+            params = json.loads(f.read())
+
+        self.args: ModelArgs = ModelArgs(
+            max_seq_len=max_seq_len,
+            max_batch_size=max_batch_size,
+            device=device,
+            **params,
+        )
+
+        self.tokenizer = SentencePieceProcessor()
+        self.tokenizer.load(tokenizer_path)
+        self.args.vocab_size = self.tokenizer.vocab_size()
+
+        if device == "cuda":
+            torch.set_default_tensor_type(torch.cuda.HalfTensor)
+        else:
+            torch.set_default_tensor_type(torch.BFloat16Tensor)
+
+        self.model = Transformer(self.args).to(device)
+
+        if load_model:
+            # Rope.freqs, is not loaded from checkpoint
+            del checkpoint["rope.freqs"]
+            self.model.load_state_dict(checkpoint, strict=True)
+
+    def text_completion(
+        self,
+        prompts: list[str],
+        temperature: float = 0.6,
+        top_p: float = 0.9,
+        max_gen_len: Optional[int] = None,
+    ):
+        if max_gen_len is None:
+            max_gen_len = self.args.max_seq_len - 1
+
+        prompt_tokens = [
+            self.tokenizer.encode(prompt, out_type=int, add_bos=True, add_eos=False)
+            for prompt in prompts
+        ]
+
+        batch_size = len(prompt_tokens)
+        assert (
+            batch_size <= self.args.max_batch_size
+        ), f"batch size must be less than or equal to {self.args.max_batch_size}"
+        max_prompt_len = max(len(prompt) for prompt in prompt_tokens)
+
+        assert (
+            max_prompt_len <= self.args.max_seq_len
+        ), f"prompt length must be less than or equal to {self.args.max_seq_len}"
+        total_len = min(self.args.max_seq_len, max_gen_len + max_prompt_len)
+
+        pad_id = self.tokenizer.pad_id()
+        tokens = torch.full(
+            (batch_size, total_len), pad_id, dtype=torch.long, device=self.args.device
+        )
+        for k, t in enumerate(prompt_tokens):
+            # Populate the initial tokens with the prompt tokens
+            tokens[k, : len(t)] = torch.tensor(
+                t, dtype=torch.long, device=self.args.device
+            )
+
+        eos_reached = torch.tensor([False] * batch_size, device=self.args.device)
+        prompt_tokens_mask = tokens != pad_id
+        for cur_pos in range(1, total_len):
+            with torch.no_grad():
+                logits = self.model.forward(tokens[:, cur_pos - 1 : cur_pos], cur_pos)
+            if temperature > 0:
+                probs = torch.softmax(logits[:, -1] / temperature, dim=-1)
+                next_token = self._sample_top_p(probs, top_p)
+            else:
+
+                next_token = torch.argmax(logits[:, -1], dim=-1)
+
+            next_token = next_token.reshape(-1)
+
+            next_token = torch.where(
+                prompt_tokens_mask[:, cur_pos], tokens[:, cur_pos], next_token
+            )
+            tokens[:, cur_pos] = next_token
+            eos_reached |= (~prompt_tokens_mask[:, cur_pos]) & (
+                next_token == self.tokenizer.eos_id
+            )
+            if all(eos_reached):
+                break
+
+        token_list = []
+        text_list = []
+        for current_prompt_tokens in tokens.tolist():
+            
+            if self.tokenizer.eos_id in current_prompt_tokens:
+                eos_idx = current_prompt_tokens.index(self.tokenizer.eos_id)
+                current_prompt_tokens = current_prompt_tokens[:eos_idx]
+            token_list.append(current_prompt_tokens)
+            decoded_text = self.tokenizer.decode(current_prompt_tokens)
+            text_list.append(decoded_text)
+        return (token_list, text_list)
+
+    def _sample_top_p(self, probs, p):
+        probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
+        probs_sum = torch.cumsum(probs_sort, dim=-1)
+        mask = probs_sum - probs_sort > p
+        probs_sort[mask] = 0.0
+        probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
+        next_token = torch.multinomial(probs_sort, num_samples=1)
+        next_token = torch.gather(probs_idx, -1, next_token)
+        return next_token
