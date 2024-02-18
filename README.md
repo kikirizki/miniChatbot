@@ -1,5 +1,6 @@
-# miniChatbot
-
+<div style="text-align:center;">
+<img src="https://github.com/kikirizki/miniChatbot/blob/main/minichatbot_icon.png" width="256px" height="256px">
+</div>
 The minimum and simplest working example chatbot written using pytorch
 
 References:
