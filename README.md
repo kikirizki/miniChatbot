@@ -2,9 +2,9 @@
 <img src="https://github.com/kikirizki/miniChatbot/blob/main/minichatbot_icon.png" width="256px" height="256px">
 </div>
 
-## miniChatbot: A Humble Exploration of Chatbot Development
+## miniChatbot: A Humble Exploration of Intricate Chatbot's Theoritical Foundation 
 
-Welcome to miniChatbot! This humble repository is a labor of love aimed at providing an accessible journey through the intricate world of chatbot development. Our goal is simple: to share knowledge and learn together, one step at a time.
+Welcome to miniChatbot! This humble repository is a labor of love aimed at providing an accessible journey through the intricate world of chatbot theoritical foundation and it's code implementation. Our goal is simple: to share knowledge and learn together, one step at a time.
 
 ## Our Humble Objective
 
@@ -27,7 +27,7 @@ In the spirit of humility, we've miniChatbot is build upon these simple philosop
 - Code: Dive into our humble codebase, where simplicity and clarity reign supreme.
 
 ## Getting Started
-currently the code contain the simple re-implementation LLaMA2, the code is different with offical llama2 model, but still compatible with it's official checkpoint, please refer to the official repo to get the model checkpoint
+currently the code contain the simple re-implementation LLaMA2 emphasizing code readability over maintainability and robustness, hence the code is different with offical llama2 model, but still compatible with it's official checkpoint, please refer to the official repo to get the model checkpoint
 
 To run the chatbot demo please run the following command
 
