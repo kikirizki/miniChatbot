@@ -26,17 +26,17 @@ In the spirit of humility, we've miniChatbot is build upon these simple philosop
 
 - Code: Dive into our humble codebase, where simplicity and clarity reign supreme.
 
-## Get Started
+## Getting Started
 currently the code contain the simple re-implementation LLaMA2, the code is different with offical llama2 model, but still compatible with it's official checkpoint, please refer to the official repo to get the model checkpoint
 
 To run the chatbot demo please run the following command
 
 ```bash
-python3 demo.py --checkpoints_path [path to meta's llama2 weight file] --parameter_path [path to meta's llama2 model configuration] --tokenizer_path [path to SentencePiece tokenizer weight file]
+python3 demo.py --checkpoints_path [path to official llama2 weight file] --parameter_path [path to official llama2 model configuration] --tokenizer_path [path to SentencePiece tokenizer weight file]
 ```
 This is example of loading llama2 7B model
 ```bash
-python3 demo.py --checkpoints_path /home/ubuntu/LLaMa2/7B/consolidated.00.pth --parameter_path /home/ubuntu/LLaMa2/7B/params.json --tokenizer_path '/home/ubuntu/LLaMa2/tokenizer.model'
+python3 demo.py --checkpoints_path /home/ubuntu/LLaMa2/7B/consolidated.00.pth --parameter_path /home/ubuntu/LLaMa2/7B/params.json --tokenizer_path /home/ubuntu/LLaMa2/tokenizer.model
 ```
 
 ## Todo list
