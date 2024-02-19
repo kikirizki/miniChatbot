@@ -62,22 +62,33 @@ def get_complex_rotary_matrix(
 
 
 def apply_rotary_embeddings(
-    x: torch.Tensor, rotary_matrix_complex: torch.Tensor, device: str
+    query: torch.Tensor, key: torch:Tensor, rotary_matrix_complex: torch.Tensor, device: str
 ):
 
-    x_complex = torch.view_as_complex(
+    query_complex = torch.view_as_complex(
         rearrange(
-            x.float(),
+            query.float(),
             "B seq_len n_head (half_hdim two) -> B seq_len n_head half_hdim two",
             two=2,
         )
     )
+
+    key_complex = torch.view_as_complex(
+        rearrange(
+            key.float(),
+            "B seq_len n_head (half_hdim two) -> B seq_len n_head half_hdim two",
+            two=2,
+        )
+    )
+
     rotary_matrix_complex = rearrange(
         rotary_matrix_complex, "seq_len half_hdim -> 1 seq_len 1 half_hdim"
     )
-    x_rotated_complex = x_complex * rotary_matrix_complex
-    x_rotated = torch.view_as_real(x_rotated_complex).reshape_as(x)
-    return x_rotated.type_as(x).to(device)
+    query_rotated_complex = query_complex * rotary_matrix_complex
+    key_rotated_complex = key_complex * rotary_matrix_complex
+    query_rotated = torch.view_as_real(query_rotated_complex).reshape_as(query)
+    key_rotated = torch.view_as_real(key_rotated_complex).reshape_as(key)
+    return query_rotated.type_as(query).to(device), key_rotated.type_as(key).to(device)
 
 
 def repeat_kv_head(x: torch.Tensor, n_rep: int) -> torch.Tensor:
@@ -139,9 +150,7 @@ class SelfAttention(nn.Module):
             "B seq_len (n_head h_dim) -> B seq_len n_head h_dim",
             h_dim=self.head_dim,
         )
-
-        query = apply_rotary_embeddings(query, rotary_matrix_complex, device=x.device)
-        key = apply_rotary_embeddings(key, rotary_matrix_complex, device=x.device)
+        query, key = apply_rotary_embeddings(query, key, rotary_matrix_complex, device=x.device)
 
         key, value = self.update_cache(key, value, start_pos)
 
