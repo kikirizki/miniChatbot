@@ -36,9 +36,9 @@ In the spirit of humility, we've miniChatbot is build upon these simple philosop
     - positional embedding
 
   - LLM inference strategy
-    - top-$P$
-    - beam search
-    - greedy   
+    - greedy
+    - top-k
+    - top-p   
 - LLaMa2
   - RMS Normalization
   - Rotary Embedding
