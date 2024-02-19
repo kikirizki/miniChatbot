@@ -62,7 +62,7 @@ def get_complex_rotary_matrix(
 
 
 def apply_rotary_embeddings(
-    query: torch.Tensor, key: torch:Tensor, rotary_matrix_complex: torch.Tensor, device: str
+    query: torch.Tensor, key: torch.Tensor, rotary_matrix_complex: torch.Tensor, device: str
 ):
 
     query_complex = torch.view_as_complex(
