@@ -26,6 +26,32 @@ In the spirit of humility, we've miniChatbot is build upon these simple philosop
 
 - Code: Dive into our humble codebase, where simplicity and clarity reign supreme.
 
+
+## Table of Contents
+- Introduction to Large Language Model
+  - Tokenization
+    - BPE
+  - Transformer neural network architecture
+    - scaled dot product attention
+    - positional embedding
+
+  - LLM inference strategy
+    - top-$P$
+    - beam search
+    - greedy   
+- LLaMa2
+  - RMS Normalization
+  - Rotary Embedding
+  - KV-Cache
+  - Grouped Query Attention
+- Mistral
+  - Sliding Window Attention
+  - Sparse Mixture of Experts
+  - Rolling Buffer
+- Finetuning
+  - LoRA
+  - qLoRA  
+
 ## Getting Started
 currently the code contain the simple re-implementation LLaMA2 emphasizing code readability over maintainability and robustness, hence the code is different with offical llama2 model, but still compatible with it's official checkpoint, please refer to the official repo to get the model checkpoint
 
