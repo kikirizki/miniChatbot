@@ -58,11 +58,14 @@ currently the code contain the simple re-implementation LLaMA2 emphasizing code 
 To run the chatbot demo please run the following command
 
 ```bash
-python3 demo.py  [path to checkpoint directory]  [path to tokenizer weight]
+python3 demo.py [model name, either mistral or llama] [path to checkpoint directory]  [path to tokenizer weight]
 ```
-This is example of loading llama2 7B model
+examples
 ```bash
-python3 demo.py  /home/ubuntu/LLaMa2/7B/  /home/ubuntu/LLaMa2/tokenizer.model
+python3 -m demo llama ~/LLaMa2/7B/  ~/LLaMa2/tokenizer.model
+```
+```bash
+python3 -m demo mistral ~/mistral-7B-v0.1/ ~/mistral-7B-v0.1/tokenizer.model
 ```
 
 ## Todo list
