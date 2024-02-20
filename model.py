@@ -7,8 +7,7 @@ import torch.nn.functional as F
 from pathlib import Path
 import json
 from sentencepiece import SentencePieceProcessor
-from tqdm import tqdm
-from einops import rearrange, repeat
+from einops import rearrange
 
 
 @dataclass
@@ -45,15 +44,15 @@ class RMSNorm(nn.Module):
         return self.weight * self._norm(x.float()).type_as(x)
 
 
-def get_complex_rotary_matrix(
-    head_dim: int, seq_len: int, theta: float = 10000.0
-):
+def get_complex_rotary_matrix(head_dim: int, seq_len: int, theta: float = 10000.0):
     # theta_i = 10000^(-2(i-1)/dim) for i = [1, 2, ... dim/2]
     # let k = 2(i-1) then expression -2(i-1)/dim for i = [1, 2, ... dim/2] equivalent to
     # -k/dim k=[-2(1-1), 2(2-1),2(3-1),...,2(dim/2 -1)]=[0,2,...,dim-2]
     # or in python will be range(0,dim,2).
     # Please recall that the range() function will only include dim-2 in the end of the series
-    theta = 1.0 / 10000.0 ** (torch.arange(0, head_dim, 2)[:head_dim//2].float() / head_dim)
+    theta = 1.0 / 10000.0 ** (
+        torch.arange(0, head_dim, 2)[: head_dim // 2].float() / head_dim
+    )
     m = torch.arange(seq_len)
     angular_component = torch.outer(m, theta).float()
     radial_component = torch.ones_like(angular_component)
@@ -62,7 +61,10 @@ def get_complex_rotary_matrix(
 
 
 def apply_rotary_embeddings(
-    query: torch.Tensor, key: torch.Tensor, rotary_matrix_complex: torch.Tensor, device: str
+    query: torch.Tensor,
+    key: torch.Tensor,
+    rotary_matrix_complex: torch.Tensor,
+    device: str,
 ):
 
     query_complex = torch.view_as_complex(
@@ -94,7 +96,7 @@ def apply_rotary_embeddings(
 def repeat_kv_head(keys: torch.Tensor, values: torch.Tensor, repeats: int):
     keys = torch.repeat_interleave(keys, repeats=repeats, dim=2)
     values = torch.repeat_interleave(values, repeats=repeats, dim=2)
-    return keys, values 
+    return keys, values
 
 
 class SelfAttention(nn.Module):
@@ -146,12 +148,14 @@ class SelfAttention(nn.Module):
             "B seq_len (n_head h_dim) -> B seq_len n_head h_dim",
             h_dim=self.head_dim,
         )
-        query, key = apply_rotary_embeddings(query, key, rotary_matrix_complex, device=x.device)
+        query, key = apply_rotary_embeddings(
+            query, key, rotary_matrix_complex, device=x.device
+        )
 
         key, value = self.update_cache(key, value, start_pos)
 
         key, value = repeat_kv_head(key, value, self.n_rep)
-       
+
         key = rearrange(key, "B seq_len n_head head_dim -> B n_head seq_len head_dim")
         value = rearrange(
             value, "B seq_len n_head head_dim -> B n_head seq_len head_dim"
@@ -238,8 +242,7 @@ class Transformer(nn.Module):
         self.output = nn.Linear(args.dim, self.vocab_size, bias=False)
 
         self.complex_rotary_matrix = get_complex_rotary_matrix(
-            self.args.dim // self.args.n_heads,
-            self.args.max_seq_len * 2
+            self.args.dim // self.args.n_heads, self.args.max_seq_len * 2
         ).to(device=self.args.device)
 
     def forward(self, tokens: torch.Tensor, start_pos: int):
@@ -263,43 +266,28 @@ class LLaMA:
 
     def __init__(
         self,
-        checkpoints_path: str,
-        parameter_path: str,
-        tokenizer_path: str,
-        load_model: bool,
+        checkpoints_dir: Path,
+        tokenizer_path: Path,
         max_seq_len: int,
         max_batch_size: int,
         device: str,
     ):
 
-        if load_model:
-            checkpoint = torch.load(checkpoints_path, map_location="cpu")
-
-        with open(parameter_path, "r") as f:
-            params = json.loads(f.read())
-
-        self.args: ModelArgs = ModelArgs(
-            max_seq_len=max_seq_len,
-            max_batch_size=max_batch_size,
-            device=device,
-            **params,
-        )
-
+        with open(checkpoints_dir/'params.json', "r") as f:
+            self.args = ModelArgs(
+                max_seq_len=max_seq_len,
+                max_batch_size=max_batch_size,
+                **json.loads(f.read()),
+            )
         self.tokenizer = SentencePieceProcessor()
-        self.tokenizer.load(tokenizer_path)
+        self.tokenizer.load(str(tokenizer_path))
         self.args.vocab_size = self.tokenizer.vocab_size()
-
-        if device == "cuda":
-            torch.set_default_tensor_type(torch.cuda.HalfTensor)
-        else:
-            torch.set_default_tensor_type(torch.BFloat16Tensor)
 
         self.model = Transformer(self.args).to(device)
 
-        if load_model:
-            # Rope.freqs, is not loaded from checkpoint
-            del checkpoint["rope.freqs"]
-            self.model.load_state_dict(checkpoint, strict=True)
+        state_dict = torch.load(checkpoints_dir/'consolidated.00.pth', map_location="cpu")
+        del state_dict["rope.freqs"]
+        self.model.load_state_dict(state_dict, strict=True)
 
     def text_completion(
         self,
@@ -311,16 +299,16 @@ class LLaMA:
         if max_gen_len is None:
             max_gen_len = self.args.max_seq_len - 1
 
-        prompt_tokens = [
+        encoded_prompts = [
             self.tokenizer.encode(prompt, out_type=int, add_bos=True, add_eos=False)
             for prompt in prompts
         ]
 
-        batch_size = len(prompt_tokens)
+        batch_size = len(encoded_prompts)
         assert (
             batch_size <= self.args.max_batch_size
         ), f"batch size must be less than or equal to {self.args.max_batch_size}"
-        max_prompt_len = max(len(prompt) for prompt in prompt_tokens)
+        max_prompt_len = max(len(prompt) for prompt in encoded_prompts)
 
         assert (
             max_prompt_len <= self.args.max_seq_len
@@ -331,10 +319,10 @@ class LLaMA:
         tokens = torch.full(
             (batch_size, total_len), pad_id, dtype=torch.long, device=self.args.device
         )
-        for k, t in enumerate(prompt_tokens):
+        for i, encoded in enumerate(encoded_prompts):
             # Populate the initial tokens with the prompt tokens
-            tokens[k, : len(t)] = torch.tensor(
-                t, dtype=torch.long, device=self.args.device
+            tokens[i, : len(encoded)] = torch.tensor(
+                encoded, dtype=torch.long, device=self.args.device
             )
 
         eos_reached = torch.tensor([False] * batch_size, device=self.args.device)
@@ -364,7 +352,7 @@ class LLaMA:
         token_list = []
         text_list = []
         for current_prompt_tokens in tokens.tolist():
-            
+
             if self.tokenizer.eos_id in current_prompt_tokens:
                 eos_idx = current_prompt_tokens.index(self.tokenizer.eos_id)
                 current_prompt_tokens = current_prompt_tokens[:eos_idx]
