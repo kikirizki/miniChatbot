@@ -91,14 +91,10 @@ def apply_rotary_embeddings(
     return query_rotated.type_as(query).to(device), key_rotated.type_as(key).to(device)
 
 
-def repeat_kv_head(x: torch.Tensor, n_rep: int) -> torch.Tensor:
-    if n_rep == 1:
-        return x
-    return repeat(
-        rearrange(x, "B seq_len n_head head_dim -> B seq_len (n_head) head_dim"),
-        "B seq_len (n_head) head_dim -> B seq_len (n_rep n_head) head_dim",
-        n_rep=n_rep,
-    )
+def repeat_kv_head(keys: torch.Tensor, values: torch.Tensor, repeats: int):
+    keys = torch.repeat_interleave(keys, repeats=repeats, dim=2)
+    values = torch.repeat_interleave(values, repeats=repeats, dim=2)
+    return keys, values 
 
 
 class SelfAttention(nn.Module):
@@ -154,9 +150,8 @@ class SelfAttention(nn.Module):
 
         key, value = self.update_cache(key, value, start_pos)
 
-        key = repeat_kv_head(key, self.n_rep)
-        value = repeat_kv_head(value, self.n_rep)
-
+        key, value = repeat_kv_head(key, value, self.n_rep)
+       
         key = rearrange(key, "B seq_len n_head head_dim -> B n_head seq_len head_dim")
         value = rearrange(
             value, "B seq_len n_head head_dim -> B n_head seq_len head_dim"
