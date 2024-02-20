@@ -46,14 +46,14 @@ class RMSNorm(nn.Module):
 
 
 def get_complex_rotary_matrix(
-    head_dim: int, seq_len: int, device: str, theta: float = 10000.0
+    head_dim: int, seq_len: int, theta: float = 10000.0
 ):
     # theta_i = 10000^(-2(i-1)/dim) for i = [1, 2, ... dim/2]
     # let k = 2(i-1) then expression -2(i-1)/dim for i = [1, 2, ... dim/2] equivalent to
     # -k/dim k=[-2(1-1), 2(2-1),2(3-1),...,2(dim/2 -1)]=[0,2,...,dim-2]
     # or in python will be range(0,dim,2).
     # Please recall that the range() function will only include dim-2 in the end of the series
-    theta = 1.0 / 10000.0 ** (torch.arange(0, head_dim, 2).float() / head_dim)
+    theta = 1.0 / 10000.0 ** (torch.arange(0, head_dim, 2)[:head_dim//2].float() / head_dim)
     m = torch.arange(seq_len)
     angular_component = torch.outer(m, theta).float()
     radial_component = torch.ones_like(angular_component)
@@ -239,9 +239,8 @@ class Transformer(nn.Module):
 
         self.complex_rotary_matrix = get_complex_rotary_matrix(
             self.args.dim // self.args.n_heads,
-            self.args.max_seq_len * 2,
-            device=self.args.device,
-        )
+            self.args.max_seq_len * 2
+        ).to(device=self.args.device)
 
     def forward(self, tokens: torch.Tensor, start_pos: int):
         batch_size, seq_len = tokens.shape
