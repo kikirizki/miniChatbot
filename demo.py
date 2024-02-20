@@ -1,6 +1,6 @@
 import torch
 import fire
-from model import LLaMA
+from llama import LLaMA
 from pathlib import Path
 
 def chat(checkpoints_dir:str, tokenizer_path:str):
