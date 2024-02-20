@@ -35,7 +35,7 @@ In the spirit of humility, we've miniChatbot is build upon these simple philosop
     - scaled dot product attention
     - positional embedding
 
-  - LLM inference strategy
+  - [LLM inference strategy](doc/inference_strategy.md)
     - greedy
     - top-k
     - top-p   
