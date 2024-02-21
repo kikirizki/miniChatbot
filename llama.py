@@ -273,12 +273,18 @@ class LLaMA:
         device: str,
     ):
 
+
         with open(checkpoints_dir/'params.json', "r") as f:
             self.args = ModelArgs(
                 max_seq_len=max_seq_len,
                 max_batch_size=max_batch_size,
                 **json.loads(f.read()),
             )
+        if device == "cuda":
+            torch.set_default_tensor_type(torch.cuda.HalfTensor)
+        else:
+            torch.set_default_tensor_type(torch.BFloat16Tensor) 
+        self.args.device = device    
         self.tokenizer = SentencePieceProcessor()
         self.tokenizer.load(str(tokenizer_path))
         self.args.vocab_size = self.tokenizer.vocab_size()
