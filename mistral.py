@@ -264,7 +264,7 @@ class Mistral:
     def text_completion(
         self,
         prompts: List[str],
-        max_tokens: int
+        max_gen_len: int
     ):
         encoded_prompts = [
             [self.tokenizer.bos_id(), *self.tokenizer.encode(prompt)]
@@ -297,7 +297,7 @@ class Mistral:
             .squeeze(-1),
         ]
         cur_pos = min_prompt_len
-        for _ in range(max_tokens):
+        for _ in range(max_gen_len):
             next_token = torch.argmax(logprobs[:, -1, :], dim=-1)
         
             if cur_pos < input_mask.shape[1]:
@@ -316,7 +316,7 @@ class Mistral:
 
         all_logprobs = torch.cat(all_logprobs, 1)
         res = []
-        if max_tokens > 0:
+        if max_gen_len > 0:
             generated = torch.cat(generated, 1)
 
             for i, x in enumerate(encoded_prompts):
