@@ -67,6 +67,10 @@ python3 -m demo llama ~/LLaMa2/7B/  ~/LLaMa2/tokenizer.model
 ```bash
 python3 -m demo mistral ~/mistral-7B-v0.1/ ~/mistral-7B-v0.1/tokenizer.model
 ```
+to download mistral weight you can download from the offical mistral website here 
+https://docs.mistral.ai/models/
+
+to download llama2 weight you can, please head to this llama2 official repo https://github.com/facebookresearch/llama#download and <b>click request a new download link</b>
 
 ## Todo list
 
