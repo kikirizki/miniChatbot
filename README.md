@@ -1,5 +1,5 @@
 <div style="text-align:center;">
-<img src="https://github.com/kikirizki/miniChatbot/blob/main/minichatbot_icon.png" width="256px" height="256px">
+<img src="https://github.com/kikirizki/miniChatbot/blob/main/assets/minichatbot_icon.png" width="256px" height="256px">
 </div>
 
 ## miniChatbot: A Humble Exploration of Intricate Chatbot's Theoritical Foundation 
@@ -16,7 +16,7 @@ miniChatbot strives to be a gentle guide for those curious about chatbots, wheth
 
 
 ## How to Run The Demo
-![](https://github.com/kikirizki/miniChatbot/blob/main/demo.gif)
+![](https://github.com/kikirizki/miniChatbot/blob/main/assets/demo.gif)
 currently the code contain the simple re-implementation LLaMA2 emphasizing code readability over maintainability and robustness, hence the code is different from offical llama2 model, but still compatible with it's official checkpoint, please refer to the official repo to get the model checkpoint
 
 To run the chatbot demo please run the following command
