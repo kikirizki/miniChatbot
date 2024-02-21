@@ -294,7 +294,8 @@ class LLaMA:
         state_dict = torch.load(checkpoints_dir/'consolidated.00.pth', map_location="cpu")
         del state_dict["rope.freqs"]
         self.model.load_state_dict(state_dict, strict=True)
-
+    
+    @torch.no_grad()
     def text_completion(
         self,
         prompts: list[str],
@@ -334,8 +335,7 @@ class LLaMA:
         eos_reached = torch.tensor([False] * batch_size, device=self.args.device)
         prompt_tokens_mask = tokens != pad_id
         for cur_pos in range(1, total_len):
-            with torch.no_grad():
-                logits = self.model.forward(tokens[:, cur_pos - 1 : cur_pos], cur_pos)
+            logits = self.model.forward(tokens[:, cur_pos - 1 : cur_pos], cur_pos)
             if temperature > 0:
                 probs = torch.softmax(logits[:, -1] / temperature, dim=-1)
                 next_token = self._sample_top_p(probs, top_p)
