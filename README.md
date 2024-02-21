@@ -72,7 +72,7 @@ python3 -m demo mistral ~/mistral-7B-v0.1/ ~/mistral-7B-v0.1/tokenizer.model
 
 - [x] re-implement llama2 inference with simplicity and ease of understanding in mind
 - [x] write simplest working code of chatbot demo
-- [ ] re-implement mistral inference with simplicity and ease of understanding in mind
+- [x] re-implement mistral inference with simplicity and ease of understanding in mind
 - [ ] explain the idea behind sliding self attention 
 - [ ] write the math derivation of rotary embedding and it's code implementation
 - [ ] explain the ide behind RMS normalization paper
