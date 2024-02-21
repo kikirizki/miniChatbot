@@ -14,6 +14,28 @@ miniChatbot strives to be a gentle guide for those curious about chatbots, wheth
     Exploring the math and theory behind chatbots with humility and curiosity
     Keeping our code concise and approachable, like a friendly conversation
 
+
+## How to Run The Demo
+currently the code contain the simple re-implementation LLaMA2 emphasizing code readability over maintainability and robustness, hence the code is different with offical llama2 model, but still compatible with it's official checkpoint, please refer to the official repo to get the model checkpoint
+
+To run the chatbot demo please run the following command
+
+```bash
+python3 demo.py [model name, either mistral or llama] [path to checkpoint directory]  [path to tokenizer weight]
+```
+examples
+```bash
+python3 -m demo llama ~/LLaMa2/7B/  ~/LLaMa2/tokenizer.model
+```
+```bash
+python3 -m demo mistral ~/mistral-7B-v0.1/ ~/mistral-7B-v0.1/tokenizer.model
+```
+to download mistral weight you can download from the offical mistral website here 
+https://docs.mistral.ai/models/
+
+to download llama2 weight you can, please head to this llama2 official repo https://github.com/facebookresearch/llama#download and <b>click request a new download link</b>
+
+
 ## The Philosophy
 
 In the spirit of humility, we've miniChatbot is build upon these simple philosopical pillars:
@@ -51,26 +73,6 @@ In the spirit of humility, we've miniChatbot is build upon these simple philosop
 - Finetuning
   - LoRA
   - qLoRA  
-
-## Getting Started
-currently the code contain the simple re-implementation LLaMA2 emphasizing code readability over maintainability and robustness, hence the code is different with offical llama2 model, but still compatible with it's official checkpoint, please refer to the official repo to get the model checkpoint
-
-To run the chatbot demo please run the following command
-
-```bash
-python3 demo.py [model name, either mistral or llama] [path to checkpoint directory]  [path to tokenizer weight]
-```
-examples
-```bash
-python3 -m demo llama ~/LLaMa2/7B/  ~/LLaMa2/tokenizer.model
-```
-```bash
-python3 -m demo mistral ~/mistral-7B-v0.1/ ~/mistral-7B-v0.1/tokenizer.model
-```
-to download mistral weight you can download from the offical mistral website here 
-https://docs.mistral.ai/models/
-
-to download llama2 weight you can, please head to this llama2 official repo https://github.com/facebookresearch/llama#download and <b>click request a new download link</b>
 
 ## Todo list
 
