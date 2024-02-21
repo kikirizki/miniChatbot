@@ -54,7 +54,7 @@ class Attention(nn.Module):
                 self.args.head_dim,
             ),
             dtype=torch.float16,
-        ).cuda()
+        ).to(self.args.device)
         self.cache_v = torch.empty(
             (
                 args.max_batch_size,
@@ -63,7 +63,7 @@ class Attention(nn.Module):
                 self.args.head_dim,
             ),
             dtype=torch.float16,
-        ).cuda()
+        ).to(self.args.device)
 
     def update_cache(self, key, value, positions):
         batch_size, _, _, _ = key.shape
@@ -206,7 +206,7 @@ class Transformer(nn.Module):
         self.output = nn.Linear(args.dim, args.vocab_size, bias=False)
 
         self.freqs_cis = get_complex_rotary_matrix(self.args.head_dim, 128_000).to(
-            "cuda"
+            self.args.device
         )
 
     def forward(
@@ -254,6 +254,7 @@ class Mistral:
         self.tokenizer = SentencePieceProcessor()
         self.tokenizer.load(str(tokenizer_path))
         self.args.vocab_size = self.tokenizer.vocab_size()
+        self.args.device = device
 
         self.model = Transformer(self.args).to(device=device, dtype=dtype)
 
@@ -278,14 +279,14 @@ class Mistral:
             (len(prompts), max_prompt_len),
             pad_id,
             dtype=torch.long,
-            device="cuda",
+            device=self.args.device,
         )
         for i, encoded in enumerate(encoded_prompts):
             input_tokens[i, : len(encoded)] = torch.tensor(encoded).to(input_tokens)
         input_mask = input_tokens != pad_id
 
         # pre-fill
-        positions = torch.arange(0, min_prompt_len).to("cuda")
+        positions = torch.arange(0, min_prompt_len).to(self.args.device)
         logits = self.model.forward(input_tokens[:, :min_prompt_len], positions)
         logprobs = nn.functional.log_softmax(logits, dim=-1)
 
