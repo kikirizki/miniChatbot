@@ -107,4 +107,4 @@ References:
 and Illia Polosukhin. Attention is all you need, 2017
 3. [Llama 2: Open Foundation and Fine-Tuned Chat Models](https://z-p3-scontent.fcgk9-1.fna.fbcdn.net/v/t39.2365-6/10000000_662098952474184_2584067087619170692_n.pdf?_nc_cat=105&ccb=1-7&_nc_sid=3c67a6&_nc_ohc=40Urht-bf6sAX_7tNsr&_nc_ht=z-p3-scontent.fcgk9-1.fna&oh=00_AfBM6t7ZeFdtOr6Dixq8qjDQMcDGMNb8DssqyMkZyvyzSQ&oe=65D7367F)
 4. [LLaMA2 official code](https://github.com/facebookresearch/llama)
-
+5. [Mistral arxiv pre-print](https://arxiv.org/abs/2310.06825)
