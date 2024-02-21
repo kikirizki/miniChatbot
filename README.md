@@ -22,7 +22,7 @@ currently the code contain the simple re-implementation LLaMA2 emphasizing code 
 To run the chatbot demo please run the following command
 
 ```bash
-python3 demo.py [model name, either mistral or llama] [path to checkpoint directory]  [path to tokenizer weight]
+python3 demo.py [model name (mistral/llama)] [path to checkpoint directory]  [path to tokenizer weight] [optional, allow gpu or not setting to 0 will force to use CPU]
 ```
 examples
 ```bash
