@@ -52,9 +52,8 @@ class Attention(nn.Module):
                 args.sliding_window,
                 self.n_kv_heads,
                 self.args.head_dim,
-            ),
-            dtype=torch.float16,
-        ).to(self.args.device)
+            )
+        )
         self.cache_v = torch.empty(
             (
                 args.max_batch_size,
@@ -62,8 +61,7 @@ class Attention(nn.Module):
                 self.n_kv_heads,
                 self.args.head_dim,
             ),
-            dtype=torch.float16,
-        ).to(self.args.device)
+        )
 
     def update_cache(self, key, value, positions):
         batch_size, _, _, _ = key.shape
@@ -244,29 +242,26 @@ class Mistral:
         tokenizer_path: Path,
         max_batch_size: int,
         device: str,
-        dtype=torch.float16,
     ):
         with open(checkpoints_dir / "params.json", "r") as f:
             self.args = ModelArgs(
                 **json.loads(f.read()),
             )
+        if device == "cuda":
+            torch.set_default_tensor_type(torch.cuda.HalfTensor)
+        else:
+            torch.set_default_tensor_type(torch.BFloat16Tensor)
+        self.args.device = device
         self.args.max_batch_size = max_batch_size
         self.tokenizer = SentencePieceProcessor()
         self.tokenizer.load(str(tokenizer_path))
         self.args.vocab_size = self.tokenizer.vocab_size()
-        self.args.device = device
-
-        self.model = Transformer(self.args).to(device=device, dtype=dtype)
-
+        self.model = Transformer(self.args).to(device=device)
         state_dict = torch.load(checkpoints_dir / "consolidated.00.pth")
         self.model.load_state_dict(state_dict)
 
     @torch.no_grad()
-    def text_completion(
-        self,
-        prompts: List[str],
-        max_gen_len: int
-    ):
+    def text_completion(self, prompts: List[str], max_gen_len: int):
         encoded_prompts = [
             [self.tokenizer.bos_id(), *self.tokenizer.encode(prompt)]
             for prompt in prompts
@@ -300,7 +295,7 @@ class Mistral:
         cur_pos = min_prompt_len
         for _ in range(max_gen_len):
             next_token = torch.argmax(logprobs[:, -1, :], dim=-1)
-        
+
             if cur_pos < input_mask.shape[1]:
                 next_token = torch.where(
                     input_mask[:, cur_pos], input_tokens[:, cur_pos], next_token
