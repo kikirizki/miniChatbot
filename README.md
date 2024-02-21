@@ -16,6 +16,7 @@ miniChatbot strives to be a gentle guide for those curious about chatbots, wheth
 
 
 ## How to Run The Demo
+![](https://github.com/kikirizki/miniChatbot/blob/main/demo.gif)
 currently the code contain the simple re-implementation LLaMA2 emphasizing code readability over maintainability and robustness, hence the code is different with offical llama2 model, but still compatible with it's official checkpoint, please refer to the official repo to get the model checkpoint
 
 To run the chatbot demo please run the following command
