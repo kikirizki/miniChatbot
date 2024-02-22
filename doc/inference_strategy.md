@@ -1,10 +1,5 @@
 # LLM inference strategy
-For the sake of simplicity, let's make a simple example where we have word level tokenizer, and want to do text completion using an LLM with KV-cache, there is slight difference between inferencing using KV-cache and without KV-cache, let say we want to predict the next 3 words, of this following sequence of words (sentence).
-
-```
-what is your
-```
-and let the square $\fbox{word}$ indicate the token for the word
+Imagine that we want to do text completion using an LLM with KV-cache (there is slight difference between inferencing using KV-cache and without KV-cache). For simplicity let's pretend that each word is a token. Let say we want to predict the next 3 words that will follow this sententence.
 
 $\fbox{what}\fbox{is}\fbox{your}\dots$
 
