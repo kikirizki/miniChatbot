@@ -66,12 +66,11 @@ In the spirit of humility, we've miniChatbot is build upon these simple philosop
   - RMS Normalization
   - Rotary Embedding
   - KV-Cache
-  - KV-Cache with rolling buffer
   - Grouped Query Attention
 - Mistral
   - Sliding Window Attention
   - Sparse Mixture of Experts
-  - Rolling Buffer
+  - KV-Cache with rolling buffer
 - Finetuning
   - LoRA
   - qLoRA  
