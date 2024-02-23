@@ -1,4 +1,4 @@
-# LLM inference strategy
+# LLM inference strategy with KV-cache
 Imagine that we want to do text completion using an LLM with KV-cache (there is slight difference between inferencing using KV-cache and without KV-cache). For simplicity let's pretend that each word is a token. Let say we want to predict the next 3 words that will follow this sententence.
 
 $\fbox{what}\fbox{is}\fbox{your}\dots$

@@ -58,19 +58,22 @@ In the spirit of humility, we've miniChatbot is build upon these simple philosop
     - scaled dot product attention
     - positional embedding
 
-  - [LLM inference strategy](doc/inference_strategy.md)
+  - LLM inference strategy
     - greedy
-    - top-k
-    - top-p   
+    - random sampling
+      - top-k
+      - top-p   
 - LLaMa2
   - RMS Normalization
   - Rotary Embedding
   - KV-Cache
   - Grouped Query Attention
+  - [inference strategy with KV-cache](doc/inference_strategy.md)
 - Mistral
   - Sliding Window Attention
   - Sparse Mixture of Experts
   - KV-Cache with rolling buffer
+  - inference strategy with rolling buffer KV-cache
 - Finetuning
   - LoRA
   - qLoRA  
