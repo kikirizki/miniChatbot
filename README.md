@@ -75,7 +75,7 @@ In the spirit of humility, we've miniChatbot is build upon these simple philosop
   - KV-Cache with rolling buffer
   - inference strategy with rolling buffer KV-cache
 - Finetuning
-  - LoRA
+  - LoRA: Low-Rank Adaptation of Large Language Models 
   - qLoRA  
 
 ## Todo list
