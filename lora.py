@@ -14,8 +14,8 @@ class LoraLinear(nn.Linear):
         dtype=None,
     ) -> None:
         super().__init__(in_features, out_features, bias, device, dtype)
-        self.A = nn.parameter(torch.randn(in_features, lora_rank))
-        self.B = nn.parameter(torch.zeros(lora_rank, out_features))
+        self.A = nn.Parameter(torch.randn(in_features, lora_rank))
+        self.B = nn.Parameter(torch.zeros(lora_rank, out_features))
         self.scale = lora_alpha/lora_rank
         self.weight.requires_grad = False
 
