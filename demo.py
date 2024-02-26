@@ -15,20 +15,18 @@ def chat(model_name: str, checkpoints_dir: str, tokenizer_path: str, allow_cuda:
 
     if model_name == "mistral":
         model = Mistral(
-            checkpoints_dir=Path(checkpoints_dir),
-            tokenizer_path=Path(tokenizer_path),
             max_batch_size=1,
-            device=device,
+            device=device
         )
+        model.from_pretrained(checkpoints_dir=Path(checkpoints_dir), tokenizer_path=Path(tokenizer_path))
     
     elif model_name == "llama":
         model = LLaMA(
-            checkpoints_dir=Path(checkpoints_dir),
-            tokenizer_path=Path(tokenizer_path),
             max_seq_len=1024,
             max_batch_size=1,
             device=device,
         )
+        model.from_pretrained( checkpoints_dir=Path(checkpoints_dir), tokenizer_path=Path(tokenizer_path))
     else:
         print("Please choose model architecture, either mistral or llama")  
         return

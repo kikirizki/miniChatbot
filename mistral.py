@@ -238,26 +238,30 @@ class MistralTransformer(nn.Module):
 class Mistral:
     def __init__(
         self,
-        checkpoints_dir: Path,
-        tokenizer_path: Path,
         max_batch_size: int,
         device: str,
     ):
+
+        self.device = device
+        self.max_batch_size = max_batch_size
+        self.tokenizer = SentencePieceProcessor()
+        self.model = None
+
+    def from_pretrained(self, checkpoints_dir: Path, tokenizer_path: Path):
         with open(checkpoints_dir / "params.json", "r") as f:
             self.args = ModelArgs(
                 **json.loads(f.read()),
             )
-        if device == "cuda":
+        if self.device == "cuda":
             torch.set_default_tensor_type(torch.cuda.HalfTensor)
         else:
             torch.set_default_tensor_type(torch.BFloat16Tensor)
-        self.args.device = device
-        self.args.max_batch_size = max_batch_size
-        self.tokenizer = SentencePieceProcessor()
+        self.args.device = self.device
+        self.args.max_batch_size = self.max_batch_size
         self.tokenizer.load(str(tokenizer_path))
         self.args.vocab_size = self.tokenizer.vocab_size()
-        self.model = MistralTransformer(self.args).to(device=device)
         state_dict = torch.load(checkpoints_dir / "consolidated.00.pth")
+        self.model = MistralTransformer(self.args).to(device=self.device)
         self.model.load_state_dict(state_dict)
 
     @torch.no_grad()

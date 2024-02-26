@@ -224,7 +224,7 @@ class EncoderBlock(nn.Module):
         return out
 
 
-class LlamaTransformer(nn.Module):
+class Transformer(nn.Module):
 
     def __init__(self, args: ModelArgs):
         super().__init__()
@@ -266,34 +266,38 @@ class LLaMA:
 
     def __init__(
         self,
-        checkpoints_dir: Path,
-        tokenizer_path: Path,
         max_seq_len: int,
         max_batch_size: int,
         device: str,
     ):
 
 
+        self.tokenizer = SentencePieceProcessor()
+        self.device = device
+        self.max_seq_len = max_seq_len
+        self.max_batch_size = max_batch_size
+        self.model = None
+        
+    def from_pretrained(self,checkpoints_dir: Path, tokenizer_path: Path):   
         with open(checkpoints_dir/'params.json', "r") as f:
             self.args = ModelArgs(
-                max_seq_len=max_seq_len,
-                max_batch_size=max_batch_size,
+                max_seq_len=self.max_seq_len,
+                max_batch_size=self.max_batch_size,
                 **json.loads(f.read()),
             )
-        if device == "cuda":
+        if self.device == "cuda":
             torch.set_default_tensor_type(torch.cuda.HalfTensor)
         else:
             torch.set_default_tensor_type(torch.BFloat16Tensor) 
-        self.args.device = device    
-        self.tokenizer = SentencePieceProcessor()
+        self.args.device = self.device
         self.tokenizer.load(str(tokenizer_path))
         self.args.vocab_size = self.tokenizer.vocab_size()
 
-        self.model = LlamaTransformer(self.args).to(device)
+        self.model = Transformer(self.args).to(self.device)
 
         state_dict = torch.load(checkpoints_dir/'consolidated.00.pth', map_location="cpu")
         del state_dict["rope.freqs"]
-        self.model.load_state_dict(state_dict, strict=True)
+        self.model.load_state_dict(state_dict, strict=True)     
     
     @torch.no_grad()
     def text_completion(
