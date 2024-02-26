@@ -59,3 +59,14 @@ class LoraMistral(Mistral):
         self.model = LoraMistralTransformer(self.args).to(device=self.device)
         state_dict = torch.load(checkpoints_dir / "consolidated.00.pth")
         self.model.load_state_dict(state_dict, strict=False)
+
+    def freeze_model_except_lora(self):
+        for name, param in self.model.named_parameters():
+            if "lora_" in name:
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
+        print("Only the following layers requires grad :")      
+        print("="*32)  
+        for name, param in self.model.named_parameters():
+            if param.requires_grad : print(name)      
