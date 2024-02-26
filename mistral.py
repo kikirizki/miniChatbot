@@ -185,7 +185,7 @@ class EncoderBlock(nn.Module):
         return out
 
 
-class Transformer(nn.Module):
+class MistralTransformer(nn.Module):
     def __init__(self, args: ModelArgs):
         super().__init__()
         self.args = args
@@ -256,7 +256,7 @@ class Mistral:
         self.tokenizer = SentencePieceProcessor()
         self.tokenizer.load(str(tokenizer_path))
         self.args.vocab_size = self.tokenizer.vocab_size()
-        self.model = Transformer(self.args).to(device=device)
+        self.model = MistralTransformer(self.args).to(device=device)
         state_dict = torch.load(checkpoints_dir / "consolidated.00.pth")
         self.model.load_state_dict(state_dict)
 

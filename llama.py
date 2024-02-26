@@ -224,7 +224,7 @@ class EncoderBlock(nn.Module):
         return out
 
 
-class Transformer(nn.Module):
+class LlamaTransformer(nn.Module):
 
     def __init__(self, args: ModelArgs):
         super().__init__()
@@ -289,7 +289,7 @@ class LLaMA:
         self.tokenizer.load(str(tokenizer_path))
         self.args.vocab_size = self.tokenizer.vocab_size()
 
-        self.model = Transformer(self.args).to(device)
+        self.model = LlamaTransformer(self.args).to(device)
 
         state_dict = torch.load(checkpoints_dir/'consolidated.00.pth', map_location="cpu")
         del state_dict["rope.freqs"]
