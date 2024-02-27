@@ -48,10 +48,7 @@ class LoraMistral(Mistral):
             self.args = ModelArgs(
                 **json.loads(f.read()),
             )
-        if self.device == "cuda":
-            torch.set_default_tensor_type(torch.cuda.HalfTensor)
-        else:
-            torch.set_default_tensor_type(torch.BFloat16Tensor)
+
         self.args.device = self.device
         self.args.max_batch_size = self.max_batch_size
         self.tokenizer.load(str(tokenizer_path))

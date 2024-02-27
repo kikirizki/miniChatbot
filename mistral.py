@@ -42,9 +42,9 @@ class Attention(nn.Module):
         self.repeats = self.n_heads // self.n_kv_heads
         self.sliding_window = self.args.sliding_window
 
-        self.wq = nn.Linear(args.dim, args.n_heads * args.head_dim, bias=False)
-        self.wk = nn.Linear(args.dim, args.n_kv_heads * args.head_dim, bias=False)
-        self.wv = nn.Linear(args.dim, args.n_kv_heads * args.head_dim, bias=False)
+        self.wq = nn.Linear(args.dim, args.n_heads * args.head_dim, bias=False).cuda()
+        self.wk = nn.Linear(args.dim, args.n_kv_heads * args.head_dim, bias=False).cuda()
+        self.wv = nn.Linear(args.dim, args.n_kv_heads * args.head_dim, bias=False).cuda()
         self.wo = nn.Linear(args.n_heads * args.head_dim, args.dim, bias=False)
         self.cache_k = torch.empty(
             (
@@ -52,16 +52,16 @@ class Attention(nn.Module):
                 args.sliding_window,
                 self.n_kv_heads,
                 self.args.head_dim,
-            )
-        )
+            ), dtype=torch.float32
+        ).cuda()
         self.cache_v = torch.empty(
             (
                 args.max_batch_size,
                 args.sliding_window,
                 self.n_kv_heads,
                 self.args.head_dim,
-            ),
-        )
+            ), dtype=torch.float32
+        ).cuda()
 
     def update_cache(self, key, value, positions):
         batch_size, _, _, _ = key.shape
@@ -71,11 +71,12 @@ class Attention(nn.Module):
         scatter_pos = scatter_pos.repeat(
             batch_size, 1, self.n_kv_heads, self.args.head_dim
         )
+
         self.cache_k[:batch_size].scatter_(
-            dim=1, index=scatter_pos, src=key[:, -self.sliding_window :]
+            dim=1, index=scatter_pos.cuda(), src=key[:, -self.sliding_window :]
         )
         self.cache_v[:batch_size].scatter_(
-            dim=1, index=scatter_pos, src=value[:, -self.sliding_window :]
+            dim=1, index=scatter_pos.cuda(), src=value[:, -self.sliding_window :]
         )
 
         if positions.shape[0] > 1:
@@ -252,10 +253,10 @@ class Mistral:
             self.args = ModelArgs(
                 **json.loads(f.read()),
             )
-        if self.device == "cuda":
-            torch.set_default_tensor_type(torch.cuda.HalfTensor)
-        else:
-            torch.set_default_tensor_type(torch.BFloat16Tensor)
+        # if self.device == "cuda":
+        #     torch.set_default_tensor_type(torch.cuda.HalfTensor)
+        # else:
+        #     torch.set_default_tensor_type(torch.BFloat16Tensor)
         self.args.device = self.device
         self.args.max_batch_size = self.max_batch_size
         self.tokenizer.load(str(tokenizer_path))
@@ -286,7 +287,9 @@ class Mistral:
 
         # pre-fill
         positions = torch.arange(0, min_prompt_len).to(self.args.device)
+
         logits = self.model.forward(input_tokens[:, :min_prompt_len], positions)
+        print("logits shape ", logits.shape)
         logprobs = nn.functional.log_softmax(logits, dim=-1)
 
         # decode
@@ -320,6 +323,9 @@ class Mistral:
             generated = torch.cat(generated, 1)
 
             for i, x in enumerate(encoded_prompts):
+                print("to be decoded",x[:min_prompt_len])
+                print("Type ",type(x[:min_prompt_len]))
+                print("Shape ",x[:min_prompt_len].shape)
                 res.append(
                     self.tokenizer.decode(x[:min_prompt_len] + generated[i].tolist())
                 )
