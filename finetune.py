@@ -10,7 +10,7 @@ from dataset import SquadDataset
 save_checkpoint = True
 eval_interval = 100
 block_size = 32
-batch_size = 8
+batch_size = 4
 device = "cuda"
 tokenizer_path = "/home/ubuntu/mistral-7B-v0.1/tokenizer.model"
 
@@ -56,5 +56,5 @@ for x, y in zip(x_data, y_data):
         print(print("Losss ", loss.item()))
         
         if save_checkpoint:
-            torch.save(filter(lambda p: p.requires_grad, mistralTransformer.state_dict()), f'lora_{iter}_{loss.item()}.pth')
-
+            lora_state_dict = {name: param for name, param in mistralTransformer.state_dict().items() if "lora" in name}
+            torch.save(lora_state_dict, f'lora_{iter}_{loss.item():.2f}.pth')
